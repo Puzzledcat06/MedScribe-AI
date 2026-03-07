@@ -1,0 +1,42 @@
+# Environment variables (contains API keys - DO NOT commit)
+.env
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Audio files (potentially large/sensitive)
+audio/*.wav
+audio/*.mp3
+audio/*.m4a
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Vector store data (large binary files)
+vectorstore/chroma_db/
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Jupyter
+.ipynb_checkpoints/

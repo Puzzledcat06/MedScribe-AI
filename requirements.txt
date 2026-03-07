@@ -1,0 +1,12 @@
+openai-whisper
+ffmpeg-python
+groq
+scispacy
+spacy
+chromadb
+streamlit
+sentence-transformers
+python-dotenv
+torch
+numpy
+pandas
