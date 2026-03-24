@@ -29,8 +29,8 @@ def _get_nlp():
         try:
             import spacy
             _nlp = spacy.load("en_core_sci_sm")
-        except OSError:
-            # Fallback: no model loaded, return empty list
+        except Exception:
+            # Fallback: spacy/model not available, return empty list
             _nlp = "unavailable"
     return _nlp
 
