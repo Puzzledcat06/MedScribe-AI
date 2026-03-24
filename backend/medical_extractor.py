@@ -159,15 +159,56 @@ Return only the 3-sentence summary. No bullet points, no headers, no extra text.
 
 
 # ─── Transcript Formatter ─────────────────────────────────────────────────────
+def _parse_labeled_transcript(transcript: str) -> list:
+    """
+    Fast regex parser for transcripts that already have speaker labels like
+    'Doctor:', 'Patient:', 'Nurse:', etc.
+    Returns list of {speaker, text} dicts, or empty list if no labels found.
+    """
+    import re
+    # Match patterns like "Doctor:", "Patient:", "Nurse:", "Dr. Smith:", etc.
+    pattern = r'(?:^|\n)\s*((?:Doctor|Patient|Nurse|Dr\.\s*\w+|Receptionist|Caregiver|Family Member)\s*):?\s*'
+    parts = re.split(pattern, transcript, flags=re.IGNORECASE)
+
+    if len(parts) < 3:
+        return []  # No speaker labels found
+
+    turns = []
+    # parts[0] is text before first speaker (usually empty), then alternating speaker/text
+    i = 1
+    while i < len(parts) - 1:
+        speaker = parts[i].strip().rstrip(':')
+        text = parts[i + 1].strip()
+        if text:
+            # Normalize speaker name
+            if speaker.lower() in ('doctor', 'dr') or speaker.lower().startswith('dr.'):
+                speaker = 'Doctor'
+            elif speaker.lower() == 'patient':
+                speaker = 'Patient'
+            turns.append({"speaker": speaker, "text": text})
+        i += 2
+
+    return turns
+
+
 def format_as_dialogue(transcript: str) -> list:
     """
-    Format a raw Whisper transcript into a list of dialogue turns.
-    Uses Groq LLM to intelligently split and label Doctor/Patient turns.
+    Format a transcript into a list of dialogue turns.
+
+    Strategy:
+      1. First, try fast regex parsing if the transcript already has speaker labels
+      2. If no labels found, use Groq LLM to intelligently split and label turns
 
     Returns:
-        List of dicts: [{"speaker": "Doctor" | "Patient", "text": "..."}]
+        List of dicts: [{"speaker": "Doctor" | "Patient" | ..., "text": "..."}]
     """
-    prompt = f"""You are a medical transcription editor. The following is a raw speech-to-text transcript of a doctor-patient consultation. Split it into individual speaking turns and label each with the speaker (Doctor or Patient).
+    # Step 1: Try direct parsing for labeled transcripts
+    turns = _parse_labeled_transcript(transcript)
+    if turns:
+        return turns
+
+    # Step 2: Fall back to LLM for unlabeled audio transcripts
+    prompt = f"""You are a medical transcription editor. The following is a raw speech-to-text transcript of a medical consultation. Split it into individual speaking turns and label each with the correct speaker.
 
 Raw transcript:
 {transcript}
@@ -179,8 +220,10 @@ Return ONLY a valid JSON array like this:
 ]
 
 Rules:
-- If unsure who is speaking, use context clues (doctors ask questions, give diagnoses; patients describe symptoms)
-- Keep each turn as one natural speech segment
+- Identify speakers by context: doctors ask questions, examine, diagnose, prescribe; patients describe symptoms, answer questions
+- If there are more than 2 people (e.g. a nurse, family member, receptionist), label them accordingly
+- Keep each turn as one natural speech segment — do NOT merge multiple turns into one
+- Every sentence should be assigned to a speaker
 - Return ONLY the JSON array, no extra text."""
 
     client = _get_groq()
@@ -188,7 +231,7 @@ Rules:
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
         temperature=0,
-        max_tokens=1500,
+        max_tokens=2000,
     )
     raw = response.choices[0].message.content.strip()
     # Strip markdown fences if present

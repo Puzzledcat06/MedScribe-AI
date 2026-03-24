@@ -480,7 +480,7 @@ if "🏠 New Consultation" in page:
                 for turn in dialogue_turns:
                     spk = turn.get("speaker", "Unknown")
                     txt = turn.get("text", "")
-                    css_cls = "dialogue-doctor" if spk.lower() == "doctor" else "dialogue-patient"
+                    css_cls = "dialogue-doctor" if spk.lower() in ("doctor", "dr") else "dialogue-patient"
                     turns_html += f"""
 <div class="dialogue-turn {css_cls}">
   <div class="dialogue-label">{spk}</div>
