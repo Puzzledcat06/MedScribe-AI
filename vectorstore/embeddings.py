@@ -1,10 +1,9 @@
 """
 Vector Store — ChromaDB embeddings for semantic patient history search
+Uses ChromaDB's built-in default embedding function (no torch required).
 """
 import os
 import chromadb
-from chromadb.config import Settings
-from sentence_transformers import SentenceTransformer
 
 # ─── Paths ────────────────────────────────────────────────────────────────────
 STORE_DIR = os.path.join(os.path.dirname(__file__), "chroma_store")
@@ -12,14 +11,6 @@ STORE_DIR = os.path.join(os.path.dirname(__file__), "chroma_store")
 # ─── Lazy singletons ──────────────────────────────────────────────────────────
 _client = None
 _collection = None
-_embedder = None
-
-
-def _get_embedder():
-    global _embedder
-    if _embedder is None:
-        _embedder = SentenceTransformer("all-MiniLM-L6-v2")
-    return _embedder
 
 
 def _get_collection():
@@ -35,19 +26,12 @@ def _get_collection():
 
 def embed_and_store(doc_id: str, text: str, metadata: dict):
     """
-    Embed text and store in ChromaDB with metadata.
-
-    Args:
-        doc_id: Unique document identifier (consult_id).
-        text: Text to embed.
-        metadata: Dict of filterable metadata (patient_id, diagnosis, etc.).
+    Store text in ChromaDB with metadata.
+    ChromaDB handles embedding automatically with its default model.
     """
-    embedder = _get_embedder()
     collection = _get_collection()
-    embedding = embedder.encode(text).tolist()
     collection.upsert(
         ids=[doc_id],
-        embeddings=[embedding],
         documents=[text],
         metadatas=[metadata],
     )
@@ -65,18 +49,15 @@ def search_history(query: str, patient_id_filter: str = None, top_k: int = 3) ->
     Returns:
         List of dicts: {consult_id, text, metadata, distance}
     """
-    embedder = _get_embedder()
     collection = _get_collection()
 
     if collection.count() == 0:
         return []
 
-    query_embedding = embedder.encode(query).tolist()
-
     where_clause = {"patient_id": patient_id_filter} if patient_id_filter else None
 
     results = collection.query(
-        query_embeddings=[query_embedding],
+        query_texts=[query],
         n_results=min(top_k, collection.count()),
         where=where_clause,
         include=["documents", "metadatas", "distances"],
