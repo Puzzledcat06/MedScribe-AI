@@ -9,13 +9,23 @@ from groq import Groq
 
 load_dotenv()
 
+
+def _get_api_key():
+    """Get GROQ_API_KEY from st.secrets (Streamlit Cloud) or os.getenv (local)."""
+    try:
+        import streamlit as st
+        return st.secrets["GROQ_API_KEY"]
+    except Exception:
+        return os.getenv("GROQ_API_KEY")
+
+
 _groq_client = None
 
 
 def _get_groq():
     global _groq_client
     if _groq_client is None:
-        _groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        _groq_client = Groq(api_key=_get_api_key())
     return _groq_client
 
 
